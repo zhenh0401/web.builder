@@ -1,11 +1,14 @@
 import { store } from './store.js';
 import { renderCanvas } from './editor-render.js';
 import { renderProperties } from './properties.js';
-import { createText, createButton, createDivider, createBox } from './elements.js';
+import { createText, createButton, createDivider, createBox, createEmbed, createImage, createCollapsible } from './elements.js';
 import { downloadHTML } from './export.js';
 import { importFromText } from './import.js';
 
-const factories = { text: createText, button: createButton, divider: createDivider, box: createBox };
+const factories = { 
+  text: createText, button: createButton, divider: createDivider, box: createBox, 
+  embed: createEmbed, image: createImage, collapsible: createCollapsible 
+};
 
 document.querySelectorAll('[data-add]').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -14,13 +17,14 @@ document.querySelectorAll('[data-add]').forEach(btn => {
   });
 });
 
-document.getElementById('btn-export').addEventListener('click', () => {
-  let filename = 'index.html';
-  if (store.exportVersion > 0) {
-    filename = `index-v${store.exportVersion}.html`;
+document.getElementById('canvas-wrap').addEventListener('pointerdown', e => {
+  if (e.target.id === 'canvas' || e.target.id === 'canvas-wrap') {
+    store.select(null);
   }
-  downloadHTML(store.doc, filename);
-  store.exportVersion++;
+});
+
+document.getElementById('btn-export').addEventListener('click', () => {
+  downloadHTML(store.doc, 'index.html');
 });
 
 document.getElementById('btn-import').addEventListener('click', () => {
@@ -39,6 +43,26 @@ document.getElementById('file-import').addEventListener('change', async e => {
   }
   e.target.value = '';
 });
+
+document.addEventListener('keydown', e => {
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    e.preventDefault();
+    store.deleteSelected();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+    e.preventDefault();
+    if (e.shiftKey) store.redo();
+    else store.undo();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+    e.preventDefault();
+    store.redo();
+  }
+});
+
+window.store = store;
 
 store.subscribe(renderCanvas);
 store.subscribe(renderProperties);
