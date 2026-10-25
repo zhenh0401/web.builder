@@ -13,7 +13,7 @@ export const store = {
     pages: [defaultPage()],
     activePageId: null
   },
-  selectedId: null,
+  selectedIds: [], // Changed to array for multi-select
   listeners: [],
   history: [],
   historyIndex: -1,
@@ -41,7 +41,7 @@ export const store = {
     if (this.historyIndex > 0) {
       this.historyIndex--;
       this.doc = JSON.parse(this.history[this.historyIndex]);
-      this.selectedId = null;
+      this.selectedIds = [];
       this.emit();
     }
   },
@@ -50,7 +50,7 @@ export const store = {
     if (this.historyIndex < this.history.length - 1) {
       this.historyIndex++;
       this.doc = JSON.parse(this.history[this.historyIndex]);
-      this.selectedId = null;
+      this.selectedIds = [];
       this.emit();
     }
   },
@@ -75,12 +75,11 @@ export const store = {
 
   switchPage(id) {
     this.doc.activePageId = id;
-    this.selectedId = null;
+    this.selectedIds = [];
     this.emit();
   },
 
   addElement(el) {
-    // AUTO-ORGANIZE LOGIC: Find the lowest available Y position
     if (this.snapToGrid) {
       const page = this.getPage();
       if (page.elements.length > 0) {
@@ -88,15 +87,14 @@ export const store = {
         page.elements.forEach(e => {
           if (e.y + e.h > maxY) maxY = e.y + e.h;
         });
-        el.y = Math.round((maxY + 20) / 8) * 8; // Place below lowest element
+        el.y = Math.round((maxY + 20) / 8) * 8;
         el.x = 40;
       } else {
-        el.x = 40; el.y = 40; // First element
+        el.x = 40; el.y = 40;
       }
     }
-
     this.getPage().elements.push(el);
-    this.selectedId = el.id;
+    this.selectedIds = [el.id];
     this.pushHistory();
     this.emit();
   },
@@ -120,20 +118,84 @@ export const store = {
   deleteElement(id) {
     const page = this.getPage();
     page.elements = page.elements.filter(e => e.id !== id);
-    if (this.selectedId === id) this.selectedId = null;
+    this.selectedIds = this.selectedIds.filter(sid => sid !== id);
     this.pushHistory();
     this.emit();
   },
 
   deleteSelected() {
-    if (this.selectedId) this.deleteElement(this.selectedId);
+    const page = this.getPage();
+    page.elements = page.elements.filter(e => !this.selectedIds.includes(e.id));
+    this.selectedIds = [];
+    this.pushHistory();
+    this.emit();
   },
 
-  select(id) { this.selectedId = id; this.emit(); },
+  select(id, isShift) {
+    if (isShift) {
+      if (this.selectedIds.includes(id)) {
+        this.selectedIds = this.selectedIds.filter(sid => sid !== id);
+      } else {
+        this.selectedIds.push(id);
+      }
+    } else {
+      this.selectedIds = [id];
+    }
+    this.emit();
+  },
+
+  clearSelection() { this.selectedIds = []; this.emit(); },
+
+  alignSelection(type) {
+    if (this.selectedIds.length < 2) return;
+    const els = this.selectedIds.map(id => this.getElement(id)).filter(Boolean);
+    if (els.length === 0) return;
+
+    if (type === 'left') {
+      const minX = Math.min(...els.map(e => e.x));
+      els.forEach(e => e.x = minX);
+    } else if (type === 'right') {
+      const maxRight = Math.max(...els.map(e => e.x + e.w));
+      els.forEach(e => e.x = maxRight - e.w);
+    } else if (type === 'center-h') {
+      const avgX = els.reduce((sum, e) => sum + (e.x + e.w / 2), 0) / els.length;
+      els.forEach(e => e.x = avgX - e.w / 2);
+    } else if (type === 'top') {
+      const minY = Math.min(...els.map(e => e.y));
+      els.forEach(e => e.y = minY);
+    } else if (type === 'bottom') {
+      const maxBottom = Math.max(...els.map(e => e.y + e.h));
+      els.forEach(e => e.y = maxBottom - e.h);
+    } else if (type === 'center-v') {
+      const avgY = els.reduce((sum, e) => sum + (e.y + e.h / 2), 0) / els.length;
+      els.forEach(e => e.y = avgY - e.h / 2);
+    }
+
+    this.pushHistory();
+    this.emit();
+  },
+
+  bringForward() {
+    this.selectedIds.forEach(id => {
+      const el = this.getElement(id);
+      if (el) el.z = Date.now();
+    });
+    this.pushHistory();
+    this.emit();
+  },
+
+  sendBackward() {
+    this.selectedIds.forEach(id => {
+      const el = this.getElement(id);
+      if (el) el.z = 0;
+    });
+    this.pushHistory();
+    this.emit();
+  },
 
   loadDoc(doc) { 
     this.doc = doc; 
-    this.selectedId = null; 
+    this.selectedIds = []; 
     this.pushHistory();
     this.emit(); 
   },

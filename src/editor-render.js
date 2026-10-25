@@ -31,17 +31,10 @@ export function renderCanvas() {
 
   const activePageName = store.getPage().name;
 
-  // Top corners alignment, absolute center for title
   headerEl.innerHTML = `
     <div style="position: relative; display: flex; justify-content: space-between; align-items: flex-start; width: 100%; max-width: 1200px; margin: 0 auto; height: 250px; padding: 32px 48px 0 48px; box-sizing: border-box;">
-      
-      <!-- Left (Top Left Corner) -->
       <h1 style="margin: 0; font-size: 22px; font-weight: 600; color: ${doc.header.textColor}; z-index: 2;">${doc.siteName}</h1>
-      
-      <!-- Middle (Absolute Center) -->
       <h2 style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); margin: 0; font-size: 48px; font-weight: 800; color: ${doc.header.textColor}; text-align: center; white-space: nowrap; z-index: 1;">${activePageName}</h2>
-      
-      <!-- Right (Top Right Corner) -->
       <div style="display: flex; gap: 24px; z-index: 2;">
         ${doc.pages.map(p => `
           <span style="cursor: pointer; font-size: 16px; font-weight: ${p.id === doc.activePageId ? 'bold' : 'normal'}; color: ${doc.header.textColor}; opacity: ${p.id === doc.activePageId ? 1 : 0.7};" onclick="window.store.switchPage('${p.id}')">
@@ -68,15 +61,18 @@ export function renderCanvas() {
       canvas.appendChild(node);
       attachInteractions(node);
     }
+    const isSelected = store.selectedIds.includes(el.id);
+    
     Object.assign(node.style, {
       position: 'absolute',
       left: el.x + 'px', top: el.y + 'px',
       width: el.w + 'px', height: el.h + 'px',
       zIndex: el.z,
-      outline: store.selectedId === el.id ? '2px solid #2563eb' : 'none',
+      outline: isSelected ? '2px solid #2563eb' : 'none',
     });
     node.replaceChildren(renderContent(el, true));
-    if (store.selectedId === el.id) {
+    
+    if (isSelected) {
       ['nw', 'ne', 'sw', 'se'].forEach(pos => {
         const handle = document.createElement('div');
         handle.className = `resize-handle ${pos}`;
@@ -88,19 +84,27 @@ export function renderCanvas() {
 }
 
 function attachInteractions(node) {
-  let startX, startY, origX, origY, origW, origH;
+  let startX, startY;
+  let initialStates = [];
   let isResizing = false;
   let resizeDir = '';
 
   node.addEventListener('pointerdown', e => {
-    store.select(node.dataset.elId);
+    const isShift = e.shiftKey;
+    store.select(node.dataset.elId, isShift);
+    
     const handleEl = e.target.closest('.resize-handle');
     if (handleEl) { isResizing = true; resizeDir = handleEl.dataset.handle; } else { isResizing = false; }
     e.preventDefault();
     node.setPointerCapture(e.pointerId);
-    const el = store.getElement(node.dataset.elId);
+    
     startX = e.clientX; startY = e.clientY;
-    origX = el.x; origY = el.y; origW = el.w; origH = el.h;
+    // Save original positions of ALL selected elements for multi-drag
+    initialStates = store.selectedIds.map(id => {
+      const el = store.getElement(id);
+      return { id: el.id, x: el.x, y: el.y, w: el.w, h: el.h };
+    });
+    
     if (!isResizing) node.style.cursor = 'grabbing';
   });
 
@@ -110,19 +114,21 @@ function attachInteractions(node) {
     
     const snap = (val) => store.snapToGrid ? Math.round(val / 8) * 8 : val;
 
-    if (isResizing) {
-      let newX = origX, newY = origY, newW = origW, newH = origH;
-      if (resizeDir.includes('e')) newW = Math.max(20, origW + dx);
-      if (resizeDir.includes('s')) newH = Math.max(20, origH + dy);
-      if (resizeDir.includes('w')) { newW = Math.max(20, origW - dx); newX = origX + dx; }
-      if (resizeDir.includes('n')) { newH = Math.max(20, origH - dy); newY = origY + dy; }
-      
-      store.updateElement(node.dataset.elId, { 
-        x: snap(newX), y: snap(newY), w: snap(newW), h: snap(newH) 
-      });
-    } else {
-      store.updateElement(node.dataset.elId, { x: snap(origX + dx), y: snap(origY + dy) });
-    }
+    initialStates.forEach(state => {
+      if (isResizing) {
+        let newX = state.x, newY = state.y, newW = state.w, newH = state.h;
+        if (resizeDir.includes('e')) newW = Math.max(20, state.w + dx);
+        if (resizeDir.includes('s')) newH = Math.max(20, state.h + dy);
+        if (resizeDir.includes('w')) { newW = Math.max(20, state.w - dx); newX = state.x + dx; }
+        if (resizeDir.includes('n')) { newH = Math.max(20, state.h - dy); newY = state.y + dy; }
+        
+        store.updateElement(state.id, { 
+          x: snap(newX), y: snap(newY), w: snap(newW), h: snap(newH) 
+        });
+      } else {
+        store.updateElement(state.id, { x: snap(state.x + dx), y: snap(state.y + dy) });
+      }
+    });
   });
 
   node.addEventListener('pointerup', e => {

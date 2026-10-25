@@ -17,9 +17,10 @@ document.querySelectorAll('[data-add]').forEach(btn => {
   });
 });
 
+// Clicking empty space clears the selection
 document.getElementById('canvas-wrap').addEventListener('pointerdown', e => {
   if (e.target.id === 'canvas' || e.target.id === 'canvas-wrap') {
-    store.select(null);
+    store.clearSelection();
   }
 });
 

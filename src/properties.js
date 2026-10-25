@@ -5,23 +5,68 @@ let lastActivePageId = undefined;
 
 export function renderProperties() {
   const panel = document.getElementById('properties');
-  const el = store.selectedId ? store.getElement(store.selectedId) : null;
-
-  if (store.selectedId === lastSelectedId && store.doc.activePageId === lastActivePageId) return;
   
-  lastSelectedId = store.selectedId;
-  lastActivePageId = store.doc.activePageId;
-
-  if (el) {
-    renderElementProps(panel, el);
-  } else {
+  if (store.selectedIds.length === 0) {
+    if (lastSelectedId === null && store.doc.activePageId === lastActivePageId) return;
+    lastSelectedId = null;
+    lastActivePageId = store.doc.activePageId;
     renderPageProps(panel);
+    return;
   }
+
+  // If multiple elements are selected, show the alignment tools
+  if (store.selectedIds.length > 1) {
+    renderMultiSelectProps(panel);
+    return;
+  }
+
+  // Single element selected
+  const el = store.getElement(store.selectedIds[0]);
+  if (!el) return;
+
+  if (store.selectedIds[0] === lastSelectedId) return;
+  lastSelectedId = store.selectedIds[0];
+  renderElementProps(panel, el);
+}
+
+function renderMultiSelectProps(panel) {
+  panel.innerHTML = `
+    <div style="font-weight:bold;margin-bottom:12px;">${store.selectedIds.length} Elements Selected</div>
+    <div style="margin-bottom:12px; font-size:12px; color:#aaa;">Align horizontally:</div>
+    <div style="display:flex; gap:4px; margin-bottom:12px;">
+      <button id="align-left" style="flex:1;padding:6px;background:#333;border:1px solid #555;color:#fff;cursor:pointer;">Left</button>
+      <button id="align-center-h" style="flex:1;padding:6px;background:#333;border:1px solid #555;color:#fff;cursor:pointer;">Center</button>
+      <button id="align-right" style="flex:1;padding:6px;background:#333;border:1px solid #555;color:#fff;cursor:pointer;">Right</button>
+    </div>
+    <div style="margin-bottom:12px; font-size:12px; color:#aaa;">Align vertically:</div>
+    <div style="display:flex; gap:4px; margin-bottom:24px;">
+      <button id="align-top" style="flex:1;padding:6px;background:#333;border:1px solid #555;color:#fff;cursor:pointer;">Top</button>
+      <button id="align-center-v" style="flex:1;padding:6px;background:#333;border:1px solid #555;color:#fff;cursor:pointer;">Middle</button>
+      <button id="align-bottom" style="flex:1;padding:6px;background:#333;border:1px solid #555;color:#fff;cursor:pointer;">Bottom</button>
+    </div>
+    <button id="prop-delete" style="width:100%;padding:8px;background:#7f1d1d;border:none;color:#fff;border-radius:4px;cursor:pointer;">Delete Elements</button>
+  `;
+
+  panel.querySelector('#align-left').onclick = () => store.alignSelection('left');
+  panel.querySelector('#align-center-h').onclick = () => store.alignSelection('center-h');
+  panel.querySelector('#align-right').onclick = () => store.alignSelection('right');
+  panel.querySelector('#align-top').onclick = () => store.alignSelection('top');
+  panel.querySelector('#align-center-v').onclick = () => store.alignSelection('center-v');
+  panel.querySelector('#align-bottom').onclick = () => store.alignSelection('bottom');
+  panel.querySelector('#prop-delete').onclick = () => store.deleteSelected();
 }
 
 function renderElementProps(panel, el) {
   let html = `<div style="font-size:12px;color:#2563eb;margin-bottom:12px;cursor:pointer;" id="back-to-page">← Back to Page Settings</div>`;
   html += `<div style="font-weight:bold;margin-bottom:12px;">Edit ${el.type.toUpperCase()}</div>`;
+
+  // Z-Index Controls
+  html += `
+    <div style="display:flex; gap:4px; margin-bottom:16px;">
+      <button id="layer-up" style="flex:1;padding:6px;background:#333;border:1px solid #555;color:#fff;cursor:pointer;">Bring Forward</button>
+      <button id="layer-down" style="flex:1;padding:6px;background:#333;border:1px solid #555;color:#fff;cursor:pointer;">Send Backward</button>
+    </div>
+  `;
 
   if (el.type === 'text' || el.type === 'button') {
     html += `<div style="margin-bottom:12px;"><label style="display:block;font-size:11px;color:#666;">Text (Supports HTML)</label><textarea id="prop-text" style="width:100%;height:60px;padding:6px;background:#252525;border:1px solid #444;color:#fff;border-radius:4px;resize:vertical;">${el.props.text || ''}</textarea></div>`;
@@ -75,7 +120,9 @@ function renderElementProps(panel, el) {
 
   panel.innerHTML = html;
 
-  panel.querySelector('#back-to-page').onclick = () => { store.select(null); };
+  panel.querySelector('#back-to-page').onclick = () => { store.clearSelection(); };
+  panel.querySelector('#layer-up').onclick = () => store.bringForward();
+  panel.querySelector('#layer-down').onclick = () => store.sendBackward();
   
   if (panel.querySelector('#prop-text')) panel.querySelector('#prop-text').oninput = e => store.updateElement(el.id, { props: { ...el.props, text: e.target.value } });
   if (panel.querySelector('#prop-url')) panel.querySelector('#prop-url').oninput = e => store.updateElement(el.id, { props: { ...el.props, href: e.target.value } });
