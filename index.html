@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Web Builder</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #121212; color: #e0e0e0; }
+  #app { display: grid; grid-template-columns: 220px 1fr 260px; grid-template-rows: 48px 1fr; height: 100vh; }
+  #toolbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: #1a1a1a; border-bottom: 1px solid #333; }
+  #toolbar button { background: #252525; border: 1px solid #444; color: #fff; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  #toolbar button:hover { background: #333; }
+  #left  { background: #1a1a1a; border-right: 1px solid #333; padding: 12px; overflow-y: auto; }
+  #right { background: #1a1a1a; border-left: 1px solid #333; padding: 12px; overflow-y: auto; }
+  #canvas-wrap { overflow: auto; background: #0a0a0a; display: flex; justify-content: center; align-items: flex-start; padding: 24px; }
+  #canvas {
+    position: relative;
+    width: 1200px; height: 800px;
+    background: #121212;
+    box-shadow: 0 0 40px rgba(0,0,0,0.6);
+    flex-shrink: 0;
+  }
+  .tool-group { display: flex; flex-direction: column; gap: 6px; }
+  .tool-group button { background: #252525; border: 1px solid #444; color: #fff; padding: 10px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px; }
+  .tool-group button:hover { background: #333; }
+  .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin: 16px 0 8px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="toolbar">
+    <button id="btn-export">Export HTML</button>
+    <button id="btn-import">Import HTML</button>
+    <input type="file" id="file-import" accept=".html" style="display:none">
+  </div>
+  <aside id="left">
+    <div class="section-title">Add</div>
+    <div class="tool-group">
+      <button data-add="text">＋ Text</button>
+      <button data-add="button">＋ Button</button>
+      <button data-add="divider">＋ Divider</button>
+      <button data-add="box">＋ Box</button>
+    </div>
+  </aside>
+  <main id="canvas-wrap">
+    <div id="canvas"></div>
+  </main>
+  <aside id="right">
+    <div class="section-title">Properties</div>
+    <div id="properties" style="color:#666; font-size:13px;">Select an element</div>
+  </aside>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
